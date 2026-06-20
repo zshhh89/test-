@@ -132,15 +132,34 @@ def extraer_imagenes(pagina_fitz, doc_fitz, num_pagina: int, carpeta_imgs: Path)
     return imagenes_md
 
 
+def siguiente_numero(carpeta: Path) -> str:
+    """Calcula el siguiente número de prefijo (01, 02, ...) según los .md existentes."""
+    existentes = list(carpeta.glob("[0-9][0-9]_*.md"))
+    if not existentes:
+        return "01"
+    numeros = []
+    for f in existentes:
+        try:
+            numeros.append(int(f.stem[:2]))
+        except ValueError:
+            pass
+    return f"{max(numeros) + 1:02d}"
+
+
 def pdf_a_markdown(ruta_pdf: str, ruta_salida: str | None = None) -> str:
     ruta_pdf = Path(ruta_pdf)
     if not ruta_pdf.exists():
         raise FileNotFoundError(f"No se encontró el archivo: {ruta_pdf}")
 
     if ruta_salida is None:
-        ruta_salida = ruta_pdf.with_suffix(".md")
+        carpeta_salida = Path("convertido")
+        carpeta_salida.mkdir(exist_ok=True)
+        numero = siguiente_numero(carpeta_salida)
+        nombre_md = f"{numero}_{ruta_pdf.stem}.md"
+        ruta_salida = carpeta_salida / nombre_md
     else:
         ruta_salida = Path(ruta_salida)
+        ruta_salida.parent.mkdir(parents=True, exist_ok=True)
 
     carpeta_imgs = ruta_salida.parent / "imgs"
     secciones = [f"# {ruta_pdf.stem}\n"]
