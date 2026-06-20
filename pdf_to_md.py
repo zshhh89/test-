@@ -199,17 +199,47 @@ def pdf_a_markdown(ruta_pdf: str, ruta_salida: str | None = None) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convierte PDF a Markdown (.md)"
+        description="Convierte uno o varios PDFs a Markdown (.md)"
     )
-    parser.add_argument("pdf", help="Ruta al archivo PDF")
+    parser.add_argument("pdfs", nargs="+", help="Uno o varios archivos PDF")
     parser.add_argument(
-        "-o", "--output", help="Ruta de salida del .md (opcional)"
+        "-o", "--output", help="Carpeta de salida (solo si se pasa un PDF)"
     )
     args = parser.parse_args()
 
-    print(f"Procesando: {args.pdf}")
-    salida = pdf_a_markdown(args.pdf, args.output)
-    print(f"Archivo Markdown generado: {salida}")
+    # Expandir globs manualmente por si el shell no lo hizo (ej: Windows)
+    archivos = []
+    for patron in args.pdfs:
+        coincidencias = sorted(Path(".").glob(patron)) if "*" in patron else [Path(patron)]
+        archivos.extend(coincidencias)
+
+    archivos = [a for a in archivos if a.suffix.lower() == ".pdf"]
+
+    if not archivos:
+        print("No se encontraron archivos PDF.")
+        return
+
+    if len(archivos) > 1 and args.output:
+        print("Aviso: -o se ignora cuando se pasan varios archivos.")
+        args.output = None
+
+    total = len(archivos)
+    errores = []
+
+    for i, pdf in enumerate(archivos, 1):
+        print(f"[{i}/{total}] Procesando: {pdf}")
+        try:
+            salida = pdf_a_markdown(str(pdf), args.output if total == 1 else None)
+            print(f"        → {salida}")
+        except Exception as e:
+            print(f"        ✗ Error: {e}")
+            errores.append((str(pdf), str(e)))
+
+    print(f"\nCompletado: {total - len(errores)}/{total} archivos convertidos.")
+    if errores:
+        print("Errores:")
+        for nombre, err in errores:
+            print(f"  - {nombre}: {err}")
 
 
 if __name__ == "__main__":
